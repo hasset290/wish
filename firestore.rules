@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/Users/$(request.auth.uid));
+    }
+
+    function role() {
+      return signedIn() && userDoc().data.role;
+    }
+
+    function isAdmin() {
+      return signedIn() && role() == "admin";
+    }
+
+    match /Users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /Couples/{coupleId} {
+      allow read: if resource.data.isPublic == true || isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+
+      match /registry/{registryItemId} {
+        allow read: if true;
+        allow create, update, delete: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/Couples/$(coupleId)).data.ownerId == request.auth.uid);
+      }
+
+      match /favorite/{favoriteId} {
+        allow read, write: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/Couples/$(coupleId)).data.ownerId == request.auth.uid);
+      }
+
+      match /guest/{guestId} {
+        allow read, write: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/Couples/$(coupleId)).data.ownerId == request.auth.uid);
+      }
+
+      match /claims/{claimId} {
+        allow read: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/Couples/$(coupleId)).data.ownerId == request.auth.uid);
+        allow create: if true;
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /gifts/{giftId} {
+      allow read: if resource.data.isActive == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /Shops/{shopId} {
+      allow read: if resource.data.status == "approved" || isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /Products/{productId} {
+      allow read: if resource.data.approvalStatus == "approved" && resource.data.isActive == true || isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /invites/{inviteId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() || signedIn();
+    }
+
+    match /registryItems/{registryItemId} {
+      allow read: if true;
+      allow write: if isAdmin() || signedIn();
+    }
+  }
+}

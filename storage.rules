@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /seed-gifts/{fileName} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    match /products/{shopId}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    match /shops/{shopId}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    match /couples/{coupleId}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+  }
+}
